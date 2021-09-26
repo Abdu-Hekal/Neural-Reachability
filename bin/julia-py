@@ -1,0 +1,8 @@
+#!/Users/b6062805/Documents/Toyata/MPC/PythonRobotics-master/PathTracking/model_predictive_speed_and_steer_control/mpc-reachability/bin/python
+# -*- coding: utf-8 -*-
+import re
+import sys
+from julia.julia_py import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())
