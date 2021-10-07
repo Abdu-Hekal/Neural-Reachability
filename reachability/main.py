@@ -64,7 +64,7 @@ class Reach:
             val = float(val)
             self.sf.append(val)
 
-    def sf_to_ver_and_plot(self):
+    def sf_to_ver(self):
         sf = self.sf
         A = numpy.array([
             [1, 1],
@@ -77,8 +77,7 @@ class Reach:
             [1, 0]])
 
         b = numpy.array(sf)
-        vertices = pypoman.compute_polytope_vertices(A, b)
-        #print(len(vertices))
+        vertices = pypoman.compute_polygon_hull(A, b)
         #pypoman.polygon.plot_polygon(vertices)
         return vertices
 
@@ -88,7 +87,7 @@ if __name__ == '__main__':
     for i in range(50):
         reach = Reach()
         reach.get_reachset([i+1, 1.1, 0.1, 4.2, -0.5, 7.3, -0.5, 9.4, -0.5, 2.5, 0.1, 0.0])
-        vertix = reach.sf_to_ver_and_plot()
+        vertix = reach.sf_to_ver()
         if len(vertix) != 0:
             pypoman.polygon.plot_polygon(vertix)
             transform = Transform()

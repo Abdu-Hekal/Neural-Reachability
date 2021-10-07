@@ -31,7 +31,7 @@ T = 5  # horizon length
 # mpc parameters
 R = np.diag([0.01, 0.01])  # input cost matrix
 Rd = np.diag([0.01, 1.0])  # input difference cost matrix
-Q = np.diag([1.0, 1.0, 0.5, 0.5])  # state cost matrix
+Q = np.diag([0.1, 0.1, 0.5, 0.5])  # state cost matrix
 Qf = Q  # state final matrix
 GOAL_DIS = 1.5  # goal distance
 STOP_SPEED = 0.5 / 3.6  # stop speed
@@ -44,12 +44,12 @@ DU_TH = 0.1  # iteration finish param
 TARGET_SPEED = 10.0 / 3.6  # [m/s] target speed
 N_IND_SEARCH = 10  # Search index number
 
-DT = 0.2  # [s] time tick
+DT = 0.4  # [s] time tick
 
 # Vehicle parameters
-LENGTH = 4.5  # [m]
+LENGTH = 2.5  # [m]
 WIDTH = 2.0  # [m]
-BACKTOWHEEL = 1.0  # [m]
+BACKTOWHEEL = 0.0  # [m]
 WHEEL_LEN = 0.3  # [m]
 WHEEL_WIDTH = 0.2  # [m]
 TREAD = 0.7  # [m]
@@ -57,7 +57,7 @@ WB = 2.5  # [m]
 
 MAX_STEER = np.deg2rad(45.0)  # maximum steering angle [rad]
 MAX_DSTEER = np.deg2rad(30.0)  # maximum steering speed [rad/s]
-MAX_SPEED = 55.0 / 3.6  # maximum speed [m/s]
+MAX_SPEED = 5 #55.0 / 3.6  # maximum speed [m/s]
 MIN_SPEED = -20.0 / 3.6  # minimum speed [m/s]
 MAX_ACCEL = 1.0  # maximum accel [m/ss]
 
@@ -447,11 +447,11 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
                 reach.get_reachset(
                     [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
                      state.v])
-                vertix = reach.sf_to_ver_and_plot()
+                vertix = reach.sf_to_ver()
                 if len(vertix) > 2 and state.v >= 0:
                     transform = Transform()
                     coords = transform.transform_coords(vertix, state.yaw, state.x, state.y)
-                    pypoman.polygon.plot_polygon(coords)
+                    #pypoman.polygon.plot_polygon(coords)
                 else:
                     print("failed")
 
@@ -462,6 +462,7 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             #plt.plot(xref[0, :], xref[1, :], "xk", label="xref")
             #plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
             plot_car(state.x, state.y, state.yaw, steer=di)
+            plt.plot(state.x-1, state.y, 'ro')
             plt.axis("equal")
             plt.grid(True)
             plt.title("Time[s]:" + str(round(time, 2))
