@@ -7,9 +7,14 @@
 # -*- coding: utf-8 -*-
 import numpy
 import torch
+import math
+
+import skgeom as sg
+from skgeom import minkowski
+from skgeom.draw import draw
 
 import pypoman
-from reachset_transform.main import Transform
+import reachset_transform.main as transform
 
 import matplotlib.pyplot as plt
 
@@ -18,13 +23,17 @@ use_cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if use_cuda else "cpu")
 torch.backends.cudnn.benchmark = True
 
+
 class Reach:
 
-    def __init__(self):
+    def __init__(self, nn_input):
         self.models = []
         self.get_models()
         self.sf = []
         self.get_models()
+        self.car_xs = [0, 2.5, 2.5, 0]
+        self.car_ys = [-1, -1, 1, 1]
+        self.nn_input = nn_input
 
     def load_checkpoint(self, filepath):
         checkpoint = torch.load(filepath, map_location=torch.device('cpu'))
@@ -44,18 +53,18 @@ class Reach:
             nn = self.load_checkpoint(file)
             self.models.append(nn)
 
-    def get_reachset(self, nn_input):
+    def get_reachset(self):
         # test data for initial region as shown in JuliaReach documentation
-        x = torch.tensor(nn_input).to(device)
+        x = torch.tensor(self.nn_input).to(device)
         models_optim = self.models
 
-        x_mean = 2.7558
-        x_std = 8.3891
+        x_mean = 4.5246
+        x_std = 16.2002
 
         x = (x - x_mean) / x_std
 
-        y_std = [3.6415, 2.4452, 3.3113, 2.3879, 3.3268, 2.4325, 3.5830, 2.5383]
-        y_mean = [3.8069, 0.4981, -2.5262, -2.9856, -3.0260, -0.0044, 3.3033, 3.3437]
+        y_std = [2.3634, 1.1607, 2.1592, 1.9090, 2.2067, 1.1526, 2.3132, 1.9778]
+        y_mean = [2.6133, 0.1772, -2.0733, -2.2305, -2.1561, 0.0864, 2.5138, 2.4472]
 
         for i in range(8):
             rnn_forward = models_optim[i][0].forward(x.float().view(1, 1, 12))
@@ -64,7 +73,7 @@ class Reach:
             val = float(val)
             self.sf.append(val)
 
-    def sf_to_ver_and_plot(self):
+    def sf_to_ver(self):
         sf = self.sf
         A = numpy.array([
             [1, 1],
@@ -78,20 +87,59 @@ class Reach:
 
         b = numpy.array(sf)
         vertices = pypoman.compute_polytope_vertices(A, b)
-        #print(len(vertices))
-        #pypoman.polygon.plot_polygon(vertices)
+        # print(len(vertices))
+        # pypoman.polygon.plot_polygon(vertices)
         return vertices
+
+    def get_theta_min(self):
+        # test data for initial region as shown in JuliaReach documentation
+        x = torch.tensor(self.nn_input).to(device)
+        file = 'reachability/bicyclemodels/new_bicycle_thetaMin_100kSamples_100kEpochs.pth'
+        model_optim = self.load_checkpoint(file)
+
+        x_mean = 4.5246
+        x_std = 16.2002
+
+        x = (x - x_mean) / x_std
+
+        y_std = 0.4077
+        y_mean = 0.0330
+
+        rnn_forward = model_optim[0].forward(x.float().view(1, 1, 12))
+        val = model_optim[1].forward(rnn_forward[0]).cpu()
+        val = (val * y_std) + y_mean
+        val = float(val)
+        self.sf.append(val)
+
+    def get_theta_max(self):
+        # test data for initial region as shown in JuliaReach documentation
+        x = torch.tensor(self.nn_input).to(device)
+        file = 'reachability/bicyclemodels/new_bicycle_thetaMax_100kSamples_100kEpochs.pth'
+        model_optim = self.load_checkpoint(file)
+
+        x_mean = 4.5246
+        x_std = 16.2002
+
+        x = (x - x_mean) / x_std
+
+        y_std = 0.4139
+        y_mean = 0.1002
+
+        rnn_forward = model_optim[0].forward(x.float().view(1, 1, 12))
+        val = model_optim[1].forward(rnn_forward[0]).cpu()
+        val = (val * y_std) + y_mean
+        val = float(val)
+        self.sf.append(val)
 
 
 if __name__ == '__main__':
     plt.figure()
     for i in range(50):
         reach = Reach()
-        reach.get_reachset([i+1, 1.1, 0.1, 4.2, -0.5, 7.3, -0.5, 9.4, -0.5, 2.5, 0.1, 0.0])
-        vertix = reach.sf_to_ver_and_plot()
+        reach.get_reachset([i + 1, 1.1, 0.1, 4.2, -0.5, 7.3, -0.5, 9.4, -0.5, 2.5, 0.1, 0.0])
+        vertix = reach.sf_to_ver()
         if len(vertix) != 0:
             pypoman.polygon.plot_polygon(vertix)
-            transform = Transform()
             coords = transform.transform_coords(vertix, 3.14, 0.0, 0.0)
             pypoman.polygon.plot_polygon(coords)
         else:

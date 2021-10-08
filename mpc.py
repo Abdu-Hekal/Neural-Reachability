@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from reachability.main import Reach
-from reachset_transform.main import Transform
+import reachset_transform.main as transform
+import Car_dimensions.main as car_reach
 import pypoman
 
 sys.path.append("../../../PathPlanning/CubicSpline/")
@@ -440,27 +441,30 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             plt.gcf().canvas.mpl_connect('key_release_event',
                                          lambda event: [exit(0) if event.key == 'escape' else None])
 
-            #plot reachset
+            # plot reachset
 
             for i in range(50):
-                reach = Reach()
-                reach.get_reachset(
+                reach = Reach(
                     [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
                      state.v])
-                vertix = reach.sf_to_ver_and_plot()
-                if len(vertix) > 2 and state.v >= 0:
-                    transform = Transform()
-                    coords = transform.transform_coords(vertix, state.yaw, state.x, state.y)
+                reach.get_reachset()
+                vertices = reach.sf_to_ver()
+                if len(vertices) > 2 and state.v >= 0:
+                    xs_reach, ys_reach = transform.get_list(vertices)
+                    theta_min = reach.get_theta_min()
+                    theta_max = reach.get_theta_max()
+                    full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max)
+                    coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
                     pypoman.polygon.plot_polygon(coords)
                 else:
                     print("failed")
 
             if ox is not None:
                 plt.plot(ox, oy, "xr", label="MPC")
-            #plt.plot(cx, cy, "-r", label="course")
-            #plt.plot(x, y, "ob", label="trajectory")
-            #plt.plot(xref[0, :], xref[1, :], "xk", label="xref")
-            #plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
+            # plt.plot(cx, cy, "-r", label="course")
+            # plt.plot(x, y, "ob", label="trajectory")
+            # plt.plot(xref[0, :], xref[1, :], "xk", label="xref")
+            # plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
             plot_car(state.x, state.y, state.yaw, steer=di)
             plt.axis("equal")
             plt.grid(True)
@@ -578,7 +582,7 @@ def main():
     # cx, cy, cyaw, ck = get_straight_course2(dl)
     # cx, cy, cyaw, ck = get_straight_course3(dl)
     cx, cy, cyaw, ck = get_forward_course(dl)
-    #cx, cy, cyaw, ck = get_switch_back_course(dl)
+    # cx, cy, cyaw, ck = get_switch_back_course(dl)
 
     sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
 
