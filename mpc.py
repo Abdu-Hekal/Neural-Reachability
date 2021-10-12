@@ -5,9 +5,9 @@ Path tracking simulation with iterative linear model predictive control for spee
 author: Atsushi Sakai (@Atsushi_twi)
 
 """
+
 import math
 import sys
-import time as my_time
 
 import cvxpy
 import matplotlib.pyplot as plt
@@ -17,6 +17,10 @@ from reachability.main import Reach
 import reachset_transform.main as transform
 import Car_dimensions.main as car_reach
 import pypoman
+
+import multiprocessing as mp
+
+import timeit
 
 sys.path.append("../../../PathPlanning/CubicSpline/")
 
@@ -31,8 +35,8 @@ T = 5  # horizon length
 
 # mpc parameters
 R = np.diag([0.01, 0.01])  # input cost matrix
-Rd = np.diag([0.01, 1.0])  # input difference cost matrix
-Q = np.diag([1.0, 1.0, 0.5, 0.5])  # state cost matrix
+Rd = np.diag([0.01, 1])  # input difference cost matrix
+Q = np.diag([0.1, 0.1, 0.5, 0.5])  # state cost matrix
 Qf = Q  # state final matrix
 GOAL_DIS = 1.5  # goal distance
 STOP_SPEED = 0.5 / 3.6  # stop speed
@@ -48,9 +52,9 @@ N_IND_SEARCH = 10  # Search index number
 DT = 0.2  # [s] time tick
 
 # Vehicle parameters
-LENGTH = 4.5  # [m]
+LENGTH = 2.5  # [m]
 WIDTH = 2.0  # [m]
-BACKTOWHEEL = 1.0  # [m]
+BACKTOWHEEL = 0.0  # [m]
 WHEEL_LEN = 0.3  # [m]
 WHEEL_WIDTH = 0.2  # [m]
 TREAD = 0.7  # [m]
@@ -58,7 +62,7 @@ WB = 2.5  # [m]
 
 MAX_STEER = np.deg2rad(45.0)  # maximum steering angle [rad]
 MAX_DSTEER = np.deg2rad(30.0)  # maximum steering speed [rad/s]
-MAX_SPEED = 55.0 / 3.6  # maximum speed [m/s]
+MAX_SPEED = 5  # 55.0 / 3.6  # maximum speed [m/s]
 MIN_SPEED = -20.0 / 3.6  # minimum speed [m/s]
 MAX_ACCEL = 1.0  # maximum accel [m/ss]
 
@@ -404,6 +408,7 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
     cyaw = smooth_yaw(cyaw)
 
+    reach = Reach()
     while MAX_TIME >= time:
         xref, target_ind, dref = calc_ref_trajectory(
             state, cx, cy, cyaw, ck, sp, dl, target_ind)
@@ -416,9 +421,9 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
         if odelta is not None:
             di, ai = odelta[0], oa[0]
 
-        print("steering angle: ", odelta)
-        print("acceleration: ", oa)
-        print("velocity: ", state.v)
+        # print("steering angle: ", odelta)
+        # print("acceleration: ", oa)
+        # print("velocity: ", state.v)
 
         state = update_state(state, ai, di)  # di is steering angle (delta)
         time = time + DT
@@ -443,35 +448,44 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
             # plot reachset
 
+            # pool = mp.Pool(mp.cpu_count())
+            # print("cores: ", mp.cpu_count())
+            # parallel_start = timeit.default_timer()
+            # results = [pool.apply_async(reachability, args=(
+            #     reach, [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
+            #             state.v], state)) for i in range(50)]
+            # pool.close()
+            # pool.join()
+            #
+            # all_coords = [r.get() for r in results]
+            #
+            # for coords in all_coords:
+            #     pypoman.polygon.plot_polygon(coords)
+
+            parallel_start = timeit.default_timer()
             for i in range(50):
-                reach = Reach(
-                    [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
-                     state.v])
-                reach.get_reachset()
-                vertices = reach.sf_to_ver()
-                if len(vertices) > 2 and state.v >= 0:
-                    xs_reach, ys_reach = transform.get_list(vertices)
-                    theta_min = reach.get_theta_min()
-                    theta_max = reach.get_theta_max()
-                    full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max)
-                    coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
-                    pypoman.polygon.plot_polygon(coords)
-                else:
-                    print("failed")
+                coords = reachability(reach,
+                                      [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3],
+                                       oa[4],
+                                       odelta[4],
+                                       state.v], state)
+                pypoman.polygon.plot_polygon(coords)
+
+            parallel_stop = timeit.default_timer()
+            print('parallel Time Taken: ', (parallel_stop - parallel_start) / 50)
 
             if ox is not None:
                 plt.plot(ox, oy, "xr", label="MPC")
-            # plt.plot(cx, cy, "-r", label="course")
-            # plt.plot(x, y, "ob", label="trajectory")
-            # plt.plot(xref[0, :], xref[1, :], "xk", label="xref")
-            # plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
+            plt.plot(cx, cy, "-r", label="course")
+            plt.plot(x, y, "ob", label="trajectory")
+            plt.plot(xref[0, :], xref[1, :], "xk", label="xref")
+            plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
             plot_car(state.x, state.y, state.yaw, steer=di)
             plt.axis("equal")
             plt.grid(True)
             plt.title("Time[s]:" + str(round(time, 2))
                       + ", speed[km/h]:" + str(round(state.v * 3.6, 2)))
             plt.pause(0.0001)
-
     return t, x, y, yaw, v, d, a
 
 
@@ -572,6 +586,34 @@ def get_switch_back_course(dl):
     ck.extend(ck2)
 
     return cx, cy, cyaw, ck
+
+
+def reachability(reach, nn_input, state):
+    start = timeit.default_timer()
+
+    reach_start = timeit.default_timer()
+
+    reach.get_reachset(nn_input)
+    reach_stop = timeit.default_timer()
+    transform_start = timeit.default_timer()
+    vertices = reach.sf_to_ver()
+    coords = None
+    if len(vertices) > 2 and state.v >= 0:
+        xs_reach, ys_reach = transform.get_list(vertices)
+        theta_min = reach.get_theta_min(nn_input)
+        theta_max = reach.get_theta_max(nn_input)
+        full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max)
+        coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
+    else:
+        print("failed")
+    transform_stop = timeit.default_timer()
+
+    stop = timeit.default_timer()
+    print('Whole Time Taken: ', stop - start)
+    print('Reachability Time Taken: ', reach_stop - reach_start)
+    print('Transformation Time Taken: ', transform_stop - transform_start)
+
+    return coords
 
 
 def main():

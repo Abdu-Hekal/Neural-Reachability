@@ -26,14 +26,12 @@ torch.backends.cudnn.benchmark = True
 
 class Reach:
 
-    def __init__(self, nn_input):
+    def __init__(self):
         self.models = []
         self.get_models()
         self.sf = []
-        self.get_models()
         self.car_xs = [0, 2.5, 2.5, 0]
         self.car_ys = [-1, -1, 1, 1]
-        self.nn_input = nn_input
 
     def load_checkpoint(self, filepath):
         checkpoint = torch.load(filepath, map_location=torch.device('cpu'))
@@ -53,9 +51,10 @@ class Reach:
             nn = self.load_checkpoint(file)
             self.models.append(nn)
 
-    def get_reachset(self):
+    def get_reachset(self, nn_input):
+        self.sf = []
         # test data for initial region as shown in JuliaReach documentation
-        x = torch.tensor(self.nn_input).to(device)
+        x = torch.tensor(nn_input).to(device)
         models_optim = self.models
 
         x_mean = 4.5246
@@ -75,6 +74,7 @@ class Reach:
 
     def sf_to_ver(self):
         sf = self.sf
+        print(sf)
         A = numpy.array([
             [1, 1],
             [0, 1],
@@ -86,14 +86,14 @@ class Reach:
             [1, 0]])
 
         b = numpy.array(sf)
-        vertices = pypoman.compute_polytope_vertices(A, b)
+        vertices = pypoman.compute_polygon_hull(A, b)
         # print(len(vertices))
         # pypoman.polygon.plot_polygon(vertices)
         return vertices
 
-    def get_theta_min(self):
+    def get_theta_min(self, nn_input):
         # test data for initial region as shown in JuliaReach documentation
-        x = torch.tensor(self.nn_input).to(device)
+        x = torch.tensor(nn_input).to(device)
         file = 'reachability/bicyclemodels/new_bicycle_thetaMin_100kSamples_100kEpochs.pth'
         model_optim = self.load_checkpoint(file)
 
@@ -109,11 +109,12 @@ class Reach:
         val = model_optim[1].forward(rnn_forward[0]).cpu()
         val = (val * y_std) + y_mean
         val = float(val)
-        self.sf.append(val)
 
-    def get_theta_max(self):
+        return val
+
+    def get_theta_max(self, nn_input):
         # test data for initial region as shown in JuliaReach documentation
-        x = torch.tensor(self.nn_input).to(device)
+        x = torch.tensor(nn_input).to(device)
         file = 'reachability/bicyclemodels/new_bicycle_thetaMax_100kSamples_100kEpochs.pth'
         model_optim = self.load_checkpoint(file)
 
@@ -130,6 +131,10 @@ class Reach:
         val = (val * y_std) + y_mean
         val = float(val)
         self.sf.append(val)
+
+        return val
+
+
 
 
 if __name__ == '__main__':

@@ -1,15 +1,9 @@
 import skgeom as sg
 from skgeom import minkowski
-from skgeom.draw import draw
-import matplotlib.pyplot as plt
 import reachset_transform.main as transform
 
-import numpy as np
-import pypoman
-import math
-
-car_xs = [0, 2.5, 2.5, 0]
-car_ys = [-1, -1, 1, 1]
+car_xs = [0.0, 2.5, 2.5, 0.0]
+car_ys = [-1.0, -1.0, 1.0, 1.0]
 
 
 def car_points(theta_min, theta_max):
@@ -20,7 +14,7 @@ def car_points(theta_min, theta_max):
     return rot_car_xs, rot_car_ys
 
 
-def uncertain_theta_effect(self, delta_theta):
+def uncertain_theta_effect(delta_theta):
     rot_xs, rot_ys = transform.rotate(car_xs, car_ys, delta_theta)
     new_car_xs = [0, max(rot_xs), max(rot_xs), 0]
     new_car_ys = [-max(rot_ys), -max(rot_ys), max(rot_ys), max(rot_ys)]
