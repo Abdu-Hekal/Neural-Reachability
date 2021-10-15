@@ -7,11 +7,6 @@
 # -*- coding: utf-8 -*-
 import numpy
 import torch
-import math
-
-import skgeom as sg
-from skgeom import minkowski
-from skgeom.draw import draw
 
 import pypoman
 import reachset_transform.main as transform
@@ -57,24 +52,23 @@ class Reach:
         x = torch.tensor(nn_input).to(device)
         models_optim = self.models
 
-        x_mean = 4.5246
-        x_std = 16.2002
+        x_mean = 4.5028
+        x_std = 16.2052
 
         x = (x - x_mean) / x_std
 
-        y_std = [2.3634, 1.1607, 2.1592, 1.9090, 2.2067, 1.1526, 2.3132, 1.9778]
-        y_mean = [2.6133, 0.1772, -2.0733, -2.2305, -2.1561, 0.0864, 2.5138, 2.4472]
+        y_std = [2.5071, 1.1776, 1.9493, 1.7887, 2.0338, 1.1589, 2.4328, 2.0179]
+        y_mean = [2.6990, 0.2936, -1.8478, -2.0807, -1.8901, 0.2159, 2.5820, 2.4274]
 
         for i in range(8):
             rnn_forward = models_optim[i][0].forward(x.float().view(1, 1, 12))
             val = models_optim[i][1].forward(rnn_forward[0]).cpu()
             val = (val * y_std[i]) + y_mean[i]
-            val = float(val)
+            val = float(val)+0.02
             self.sf.append(val)
 
     def sf_to_ver(self):
         sf = self.sf
-        print(sf)
         A = numpy.array([
             [1, 1],
             [0, 1],
@@ -97,13 +91,13 @@ class Reach:
         file = 'reachability/bicyclemodels/new_bicycle_thetaMin_100kSamples_100kEpochs.pth'
         model_optim = self.load_checkpoint(file)
 
-        x_mean = 4.5246
-        x_std = 16.2002
+        x_mean = 4.5028
+        x_std = 16.2052
 
         x = (x - x_mean) / x_std
 
-        y_std = 0.4077
-        y_mean = 0.0330
+        y_std = 0.4052
+        y_mean = -0.0478
 
         rnn_forward = model_optim[0].forward(x.float().view(1, 1, 12))
         val = model_optim[1].forward(rnn_forward[0]).cpu()
@@ -118,13 +112,13 @@ class Reach:
         file = 'reachability/bicyclemodels/new_bicycle_thetaMax_100kSamples_100kEpochs.pth'
         model_optim = self.load_checkpoint(file)
 
-        x_mean = 4.5246
-        x_std = 16.2002
+        x_mean = 4.5028
+        x_std = 16.2052
 
         x = (x - x_mean) / x_std
 
-        y_std = 0.4139
-        y_mean = 0.1002
+        y_std = 0.4274
+        y_mean = 0.1595
 
         rnn_forward = model_optim[0].forward(x.float().view(1, 1, 12))
         val = model_optim[1].forward(rnn_forward[0]).cpu()
@@ -133,8 +127,6 @@ class Reach:
         self.sf.append(val)
 
         return val
-
-
 
 
 if __name__ == '__main__':

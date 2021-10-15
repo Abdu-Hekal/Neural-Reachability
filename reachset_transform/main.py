@@ -65,7 +65,7 @@ def plot_oct(xs, ys):
 
 def rotate(xs, ys, angle):
     cx = 0
-    cy = 0.05
+    cy = 0
     xs = np.array(xs)
     ys = np.array(ys)
     xs -= cx

@@ -21,6 +21,11 @@ import pypoman
 import multiprocessing as mp
 
 import timeit
+import random
+from matplotlib.patches import Rectangle
+
+from shapely.geometry import Polygon as poly
+
 
 sys.path.append("../../../PathPlanning/CubicSpline/")
 
@@ -49,7 +54,7 @@ DU_TH = 0.1  # iteration finish param
 TARGET_SPEED = 10.0 / 3.6  # [m/s] target speed
 N_IND_SEARCH = 10  # Search index number
 
-DT = 0.2  # [s] time tick
+DT = 0.4  # [s] time tick
 
 # Vehicle parameters
 LENGTH = 2.5  # [m]
@@ -180,9 +185,12 @@ def update_state(state, a, delta):
     elif delta <= -MAX_STEER:
         delta = -MAX_STEER
 
-    state.x = state.x + state.v * math.cos(state.yaw) * DT
-    state.y = state.y + state.v * math.sin(state.yaw) * DT
-    state.yaw = state.yaw + state.v / WB * math.tan(delta) * DT
+    x_error = random.uniform(-0.1, 0.1)
+    y_error = random.uniform(-0.1, 0.1)
+    yaw_error = random.uniform(-0.1, 0.1)
+    state.x = state.x + state.v * math.cos(state.yaw) * DT + x_error*DT
+    state.y = state.y + state.v * math.sin(state.yaw) * DT + y_error*DT
+    state.yaw = state.yaw + state.v / WB * math.tan(delta) * DT + yaw_error*DT
     state.v = state.v + a * DT
 
     if state.v > MAX_SPEED:
@@ -463,16 +471,26 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             #     pypoman.polygon.plot_polygon(coords)
 
             parallel_start = timeit.default_timer()
-            for i in range(50):
+            obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
+            for i in range(100):
                 coords = reachability(reach,
                                       [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3],
                                        oa[4],
                                        odelta[4],
                                        state.v], state)
                 pypoman.polygon.plot_polygon(coords)
+                reachpoly = poly(coords)
+                print(obstacle.intersects(reachpoly))
+                if obstacle.intersects(reachpoly):
+                    state.v = 0
 
             parallel_stop = timeit.default_timer()
-            print('parallel Time Taken: ', (parallel_stop - parallel_start) / 50)
+            print('parallel Time Taken: ', (parallel_stop - parallel_start))
+
+            #plot obstacles
+            # specify the location of (left,bottom),width,height
+            car_box = poly([(state.x, state.y-0.5), (state.x+2.5, state.y-0.5), (state.x+2.5, state.y+0.5), (state.x, state.y+0.5)])
+            plt.fill(*obstacle.exterior.xy)
 
             if ox is not None:
                 plt.plot(ox, oy, "xr", label="MPC")
@@ -609,9 +627,9 @@ def reachability(reach, nn_input, state):
     transform_stop = timeit.default_timer()
 
     stop = timeit.default_timer()
-    print('Whole Time Taken: ', stop - start)
-    print('Reachability Time Taken: ', reach_stop - reach_start)
-    print('Transformation Time Taken: ', transform_stop - transform_start)
+    #print('Whole Time Taken: ', stop - start)
+    #print('Reachability Time Taken: ', reach_stop - reach_start)
+    #print('Transformation Time Taken: ', transform_stop - transform_start)
 
     return coords
 
@@ -620,11 +638,11 @@ def main():
     print(__file__ + " start!!")
 
     dl = 1.0  # course tick
-    # cx, cy, cyaw, ck = get_straight_course(dl)
-    # cx, cy, cyaw, ck = get_straight_course2(dl)
-    # cx, cy, cyaw, ck = get_straight_course3(dl)
+    #cx, cy, cyaw, ck = get_straight_course(dl)
+    #cx, cy, cyaw, ck = get_straight_course2(dl)
+    #cx, cy, cyaw, ck = get_straight_course3(dl)
     cx, cy, cyaw, ck = get_forward_course(dl)
-    # cx, cy, cyaw, ck = get_switch_back_course(dl)
+    #cx, cy, cyaw, ck = get_switch_back_course(dl)
 
     sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
 
