@@ -135,18 +135,3 @@ def get_theta_max_model():
     file = 'reachability/bicyclemodels/new_bicycle_thetaMax_100kSamples_100kEpochs.pth'
     model_optim = load_checkpoint(file)
     return model_optim
-
-
-if __name__ == '__main__':
-    plt.figure()
-    for i in range(50):
-        reach = Reach()
-        reach.get_reachset([i + 1, 1.1, 0.1, 4.2, -0.5, 7.3, -0.5, 9.4, -0.5, 2.5, 0.1, 0.0])
-        vertix = reach.sf_to_ver()
-        if len(vertix) != 0:
-            pypoman.polygon.plot_polygon(vertix)
-            coords = transform.transform_coords(vertix, 3.14, 0.0, 0.0)
-            pypoman.polygon.plot_polygon(coords)
-        else:
-            print("failed")
-    plt.show()
