@@ -13,7 +13,7 @@ import cvxpy
 import matplotlib.pyplot as plt
 import numpy as np
 
-from reachability.main import Reach
+import reachability.main as reach
 import reachset_transform.main as transform
 import Car_dimensions.main as car_reach
 import pypoman
@@ -22,10 +22,12 @@ import multiprocessing as mp
 
 import timeit
 import random
+import time
 from matplotlib.patches import Rectangle
 
 from shapely.geometry import Polygon as poly
 
+from mpire import WorkerPool
 
 sys.path.append("../../../PathPlanning/CubicSpline/")
 
@@ -188,9 +190,9 @@ def update_state(state, a, delta):
     x_error = random.uniform(-0.1, 0.1)
     y_error = random.uniform(-0.1, 0.1)
     yaw_error = random.uniform(-0.1, 0.1)
-    state.x = state.x + state.v * math.cos(state.yaw) * DT + x_error*DT
-    state.y = state.y + state.v * math.sin(state.yaw) * DT + y_error*DT
-    state.yaw = state.yaw + state.v / WB * math.tan(delta) * DT + yaw_error*DT
+    state.x = state.x + state.v * math.cos(state.yaw) * DT + x_error * DT
+    state.y = state.y + state.v * math.sin(state.yaw) * DT + y_error * DT
+    state.yaw = state.yaw + state.v / WB * math.tan(delta) * DT + yaw_error * DT
     state.v = state.v + a * DT
 
     if state.v > MAX_SPEED:
@@ -416,7 +418,9 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
     cyaw = smooth_yaw(cyaw)
 
-    reach = Reach()
+    models = reach.get_models()
+    theta_min_model = reach.get_theta_min_model()
+    theta_max_model = reach.get_theta_max_model()
     while MAX_TIME >= time:
         xref, target_ind, dref = calc_ref_trajectory(
             state, cx, cy, cyaw, ck, sp, dl, target_ind)
@@ -455,41 +459,36 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
                                          lambda event: [exit(0) if event.key == 'escape' else None])
 
             # plot reachset
-
-            # pool = mp.Pool(mp.cpu_count())
-            # print("cores: ", mp.cpu_count())
-            # parallel_start = timeit.default_timer()
-            # results = [pool.apply_async(reachability, args=(
-            #     reach, [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
-            #             state.v], state)) for i in range(50)]
-            # pool.close()
-            # pool.join()
-            #
-            # all_coords = [r.get() for r in results]
-            #
-            # for coords in all_coords:
-            #     pypoman.polygon.plot_polygon(coords)
-
             parallel_start = timeit.default_timer()
+            nn_input = [0, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4], state.v]
+            input_objects = [models, theta_min_model, theta_max_model, nn_input, state]
+
             obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
-            for i in range(100):
-                coords = reachability(reach,
-                                      [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3],
-                                       oa[4],
-                                       odelta[4],
-                                       state.v], state)
+            with WorkerPool(n_jobs=4, shared_objects=input_objects) as pool:
+                results = pool.imap(reachability, range(100))
+            for coords in results:
                 pypoman.polygon.plot_polygon(coords)
                 reachpoly = poly(coords)
                 print(obstacle.intersects(reachpoly))
                 if obstacle.intersects(reachpoly):
                     state.v = 0
 
+            # obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
+            # for i in range(100):
+            #     coords = reachability(input_objects, i)
+            #     pypoman.polygon.plot_polygon(coords)
+            #     reachpoly = poly(coords)
+            #     print(obstacle.intersects(reachpoly))
+            #     if obstacle.intersects(reachpoly):
+            #         state.v = 0
+
             parallel_stop = timeit.default_timer()
             print('parallel Time Taken: ', (parallel_stop - parallel_start))
 
-            #plot obstacles
+            # plot obstacles
             # specify the location of (left,bottom),width,height
-            car_box = poly([(state.x, state.y-0.5), (state.x+2.5, state.y-0.5), (state.x+2.5, state.y+0.5), (state.x, state.y+0.5)])
+            car_box = poly([(state.x, state.y - 0.5), (state.x + 2.5, state.y - 0.5), (state.x + 2.5, state.y + 0.5),
+                            (state.x, state.y + 0.5)])
             plt.fill(*obstacle.exterior.xy)
 
             if ox is not None:
@@ -606,20 +605,32 @@ def get_switch_back_course(dl):
     return cx, cy, cyaw, ck
 
 
-def reachability(reach, nn_input, state):
+def reachability(input_objects, my_iter):
+    models = input_objects[0]
+    print("models length: ", len(models))
+    input_objects[1]
+    input_objects[2]
+    theta_min_model = input_objects[1]
+    print("theta min: ", theta_min_model)
+    theta_max_model = input_objects[2]
+    nn_input = input_objects[3]
+    nn_input[0] = my_iter + 1
+
+    state = input_objects[4]
     start = timeit.default_timer()
 
     reach_start = timeit.default_timer()
 
-    reach.get_reachset(nn_input)
+    sf = reach.get_reachset(nn_input, models)
     reach_stop = timeit.default_timer()
     transform_start = timeit.default_timer()
-    vertices = reach.sf_to_ver()
+    vertices = reach.sf_to_ver(sf)
     coords = None
     if len(vertices) > 2 and state.v >= 0:
         xs_reach, ys_reach = transform.get_list(vertices)
-        theta_min = reach.get_theta_min(nn_input)
-        theta_max = reach.get_theta_max(nn_input)
+        print("theta nn input", len(nn_input))
+        theta_min = reach.get_theta_min(nn_input, theta_min_model)
+        theta_max = reach.get_theta_max(nn_input, theta_max_model)
         full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max)
         coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
     else:
@@ -627,9 +638,9 @@ def reachability(reach, nn_input, state):
     transform_stop = timeit.default_timer()
 
     stop = timeit.default_timer()
-    #print('Whole Time Taken: ', stop - start)
-    #print('Reachability Time Taken: ', reach_stop - reach_start)
-    #print('Transformation Time Taken: ', transform_stop - transform_start)
+    # print('Whole Time Taken: ', stop - start)
+    # print('Reachability Time Taken: ', reach_stop - reach_start)
+    # print('Transformation Time Taken: ', transform_stop - transform_start)
 
     return coords
 
@@ -638,11 +649,11 @@ def main():
     print(__file__ + " start!!")
 
     dl = 1.0  # course tick
-    #cx, cy, cyaw, ck = get_straight_course(dl)
-    #cx, cy, cyaw, ck = get_straight_course2(dl)
-    #cx, cy, cyaw, ck = get_straight_course3(dl)
+    # cx, cy, cyaw, ck = get_straight_course(dl)
+    # cx, cy, cyaw, ck = get_straight_course2(dl)
+    # cx, cy, cyaw, ck = get_straight_course3(dl)
     cx, cy, cyaw, ck = get_forward_course(dl)
-    #cx, cy, cyaw, ck = get_switch_back_course(dl)
+    # cx, cy, cyaw, ck = get_switch_back_course(dl)
 
     sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
 
