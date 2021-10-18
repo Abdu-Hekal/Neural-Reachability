@@ -75,6 +75,12 @@ MAX_ACCEL = 1.0  # maximum accel [m/ss]
 
 show_animation = True
 
+models = reach.get_models()
+theta_min_model = reach.get_theta_min_model()
+theta_max_model = reach.get_theta_max_model()
+
+obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
+
 
 class State:
     """
@@ -418,9 +424,6 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
     cyaw = smooth_yaw(cyaw)
 
-    models = reach.get_models()
-    theta_min_model = reach.get_theta_min_model()
-    theta_max_model = reach.get_theta_max_model()
     while MAX_TIME >= time:
         xref, target_ind, dref = calc_ref_trajectory(
             state, cx, cy, cyaw, ck, sp, dl, target_ind)
@@ -460,25 +463,19 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
             # plot reachset
             parallel_start = timeit.default_timer()
-            nn_input = [0, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4], state.v]
-            input_objects = [models, theta_min_model, theta_max_model, nn_input, state]
+            nn_input = [0, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
+                        state.v]
+            input_objects = [nn_input, state]
 
-            obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
-            with WorkerPool(n_jobs=4, shared_objects=input_objects) as pool:
-                results = pool.imap(reachability, range(100))
-            for coords in results:
-                pypoman.polygon.plot_polygon(coords)
-                reachpoly = poly(coords)
-                print(obstacle.intersects(reachpoly))
-                if obstacle.intersects(reachpoly):
-                    state.v = 0
+            with WorkerPool(n_jobs=8, shared_objects=input_objects, enable_insights=True) as pool:
+                results = pool.map(reachability, range(100))
+                pool.print_insights()
 
-            # obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
             # for i in range(100):
             #     coords = reachability(input_objects, i)
             #     pypoman.polygon.plot_polygon(coords)
             #     reachpoly = poly(coords)
-            #     print(obstacle.intersects(reachpoly))
+            #     # print(obstacle.intersects(reachpoly))
             #     if obstacle.intersects(reachpoly):
             #         state.v = 0
 
@@ -606,17 +603,10 @@ def get_switch_back_course(dl):
 
 
 def reachability(input_objects, my_iter):
-    models = input_objects[0]
-    print("models length: ", len(models))
-    input_objects[1]
-    input_objects[2]
-    theta_min_model = input_objects[1]
-    print("theta min: ", theta_min_model)
-    theta_max_model = input_objects[2]
-    nn_input = input_objects[3]
+    nn_input = input_objects[0]
     nn_input[0] = my_iter + 1
 
-    state = input_objects[4]
+    state = input_objects[1]
     start = timeit.default_timer()
 
     reach_start = timeit.default_timer()
@@ -628,7 +618,6 @@ def reachability(input_objects, my_iter):
     coords = None
     if len(vertices) > 2 and state.v >= 0:
         xs_reach, ys_reach = transform.get_list(vertices)
-        print("theta nn input", len(nn_input))
         theta_min = reach.get_theta_min(nn_input, theta_min_model)
         theta_max = reach.get_theta_max(nn_input, theta_max_model)
         full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max)
@@ -641,6 +630,12 @@ def reachability(input_objects, my_iter):
     # print('Whole Time Taken: ', stop - start)
     # print('Reachability Time Taken: ', reach_stop - reach_start)
     # print('Transformation Time Taken: ', transform_stop - transform_start)
+
+    pypoman.polygon.plot_polygon(coords)
+    reachpoly = poly(coords)
+    # print(obstacle.intersects(reachpoly))
+    if obstacle.intersects(reachpoly):
+        state.v = 0
 
     return coords
 
