@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import math
 import numpy as np
+from pytope import Polytope
 
 
 def get_coords(xs, ys):
@@ -76,6 +77,15 @@ def rotate(xs, ys, angle):
     ys = ys_new + cy
 
     return xs, ys
+
+
+def poly_rotate(poly, angle):
+    rot = angle
+    rot_mat = np.array([[np.cos(rot), -np.sin(rot)],
+                        [np.sin(rot), np.cos(rot)]])
+    P = rot_mat * poly
+
+    return P
 
 
 def translate(xs, ys, xd, yd):  # xd, yd are differnce in xs and ys required for translation

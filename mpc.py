@@ -607,22 +607,16 @@ def reachability(sf_list, theta_min_list, theta_max_list, state, reach_iter):
     new_sf_list = []
     for dirs in range(len(sf_list)):
         new_sf_list.append(sf_list[dirs][0][reach_iter][0])
-    vertices = reach.sf_to_ver(new_sf_list)
-    coords = None
-    if len(vertices) > 2 and state.v >= 0:
-        xs_reach, ys_reach = transform.get_list(vertices)
+    poly_reach = reach.sf_to_poly(new_sf_list)
 
-        full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min_list[0][reach_iter][0],
-                                                      theta_max_list[0][reach_iter][0])
-        coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
-    else:
-        print("failed")
-
-    # pypoman.polygon.plot_polygon(coords)
-    reachpoly = poly(coords)
-    print(obstacle.intersects(reachpoly))
-    if obstacle.intersects(reachpoly):
-        state.v = 0
+    full_vertices = car_reach.add_car_to_reachset(poly_reach, theta_min_list[0][reach_iter][0],                                                 theta_max_list[0][reach_iter][0])
+    # coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
+    #
+    # #pypoman.polygon.plot_polygon(coords)
+    # reachpoly = poly(coords)
+    # print(obstacle.intersects(reachpoly))
+    # if obstacle.intersects(reachpoly):
+    #     state.v = 0
 
 
 def main():
