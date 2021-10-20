@@ -29,6 +29,8 @@ from shapely.geometry import Polygon as poly
 
 from mpire import WorkerPool
 
+import threading
+
 sys.path.append("../../../PathPlanning/CubicSpline/")
 
 try:
@@ -84,8 +86,8 @@ obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
 
 class State:
     """
-    vehicle state class
-    """
+   vehicle state class
+   """
 
     def __init__(self, x=0.0, y=0.0, yaw=0.0, v=0.0):
         self.x = x
@@ -253,8 +255,8 @@ def predict_motion(x0, oa, od, xref):
 
 def iterative_linear_mpc_control(xref, x0, dref, oa, od):
     """
-    MPC contorl with updating operational point iteraitvely
-    """
+   MPC contorl with updating operational point iteraitvely
+   """
 
     if oa is None or od is None:
         oa = [0.0] * T
@@ -275,13 +277,13 @@ def iterative_linear_mpc_control(xref, x0, dref, oa, od):
 
 def linear_mpc_control(xref, xbar, x0, dref):
     """
-    linear mpc control
+   linear mpc control
 
-    xref: reference point
-    xbar: operational point
-    x0: initial state
-    dref: reference steer angle
-    """
+   xref: reference point
+   xbar: operational point
+   x0: initial state
+   dref: reference steer angle
+   """
 
     x = cvxpy.Variable((NX, T + 1))
     u = cvxpy.Variable((NU, T))
@@ -389,16 +391,16 @@ def check_goal(state, goal, tind, nind):
 
 def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
     """
-    Simulation
+   Simulation
 
-    cx: course x position list
-    cy: course y position list
-    cy: course yaw position list
-    ck: course curvature list
-    sp: speed profile
-    dl: course tick [m]
+   cx: course x position list
+   cy: course y position list
+   cy: course yaw position list
+   ck: course curvature list
+   sp: speed profile
+   dl: course tick [m]
 
-    """
+   """
 
     goal = [cx[-1], cy[-1]]
 
@@ -463,21 +465,20 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
             # plot reachset
             parallel_start = timeit.default_timer()
-            nn_input = [0, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4], odelta[4],
-                        state.v]
-            input_objects = [nn_input, state]
 
-            with WorkerPool(n_jobs=8, shared_objects=input_objects, enable_insights=True) as pool:
-                results = pool.map(reachability, range(100))
-                pool.print_insights()
+            input_list = []
+            for i in range(100):
+                nn_input = [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4],
+                            odelta[4],
+                            state.v]
+                input_list.append(nn_input)
+            gpu_input_list = reach.gpu_inputs_list(input_list)
+            sf_list = reach.get_reachset(gpu_input_list, models)
+            theta_min_list = reach.get_theta_min_list(gpu_input_list, theta_min_model)
+            theta_max_list = reach.get_theta_max_list(gpu_input_list, theta_max_model)
 
-            # for i in range(100):
-            #     coords = reachability(input_objects, i)
-            #     pypoman.polygon.plot_polygon(coords)
-            #     reachpoly = poly(coords)
-            #     # print(obstacle.intersects(reachpoly))
-            #     if obstacle.intersects(reachpoly):
-            #         state.v = 0
+            for reach_iter in range(100):
+                reachability(sf_list, theta_min_list, theta_max_list, state, reach_iter)
 
             parallel_stop = timeit.default_timer()
             print('parallel Time Taken: ', (parallel_stop - parallel_start))
@@ -602,42 +603,26 @@ def get_switch_back_course(dl):
     return cx, cy, cyaw, ck
 
 
-def reachability(input_objects, my_iter):
-    nn_input = input_objects[0]
-    nn_input[0] = my_iter + 1
-
-    state = input_objects[1]
-    start = timeit.default_timer()
-
-    reach_start = timeit.default_timer()
-
-    sf = reach.get_reachset(nn_input, models)
-    reach_stop = timeit.default_timer()
-    transform_start = timeit.default_timer()
-    vertices = reach.sf_to_ver(sf)
+def reachability(sf_list, theta_min_list, theta_max_list, state, reach_iter):
+    new_sf_list = []
+    for dirs in range(len(sf_list)):
+        new_sf_list.append(sf_list[dirs][0][reach_iter][0])
+    vertices = reach.sf_to_ver(new_sf_list)
     coords = None
     if len(vertices) > 2 and state.v >= 0:
         xs_reach, ys_reach = transform.get_list(vertices)
-        theta_min = reach.get_theta_min(nn_input, theta_min_model)
-        theta_max = reach.get_theta_max(nn_input, theta_max_model)
-        full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max)
+
+        full_vertices = car_reach.add_car_to_reachset(xs_reach, ys_reach, theta_min_list[0][reach_iter][0],
+                                                      theta_max_list[0][reach_iter][0])
         coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
     else:
         print("failed")
-    transform_stop = timeit.default_timer()
 
-    stop = timeit.default_timer()
-    # print('Whole Time Taken: ', stop - start)
-    # print('Reachability Time Taken: ', reach_stop - reach_start)
-    # print('Transformation Time Taken: ', transform_stop - transform_start)
-
-    pypoman.polygon.plot_polygon(coords)
+    # pypoman.polygon.plot_polygon(coords)
     reachpoly = poly(coords)
-    # print(obstacle.intersects(reachpoly))
+    print(obstacle.intersects(reachpoly))
     if obstacle.intersects(reachpoly):
         state.v = 0
-
-    return coords
 
 
 def main():

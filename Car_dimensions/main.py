@@ -10,6 +10,9 @@
 import skgeom as sg
 from skgeom import minkowski
 import reachset_transform.main as transform
+import numpy as np
+from pytope import Polytope
+
 
 
 
@@ -38,14 +41,16 @@ def minkowski_sum(xs1, ys1, xs2, ys2):
     p1_array = []
     p2_array = []
     for x, y in zip(xs1, ys1):
-        p1_array.append(sg.Point2(x, y))
-    p1 = sg.Polygon(p1_array)
+        p1_array.append([x, y])
+    v1 = np.array(p1_array)
+    p1 = Polytope(v1)
     for x, y in zip(xs2, ys2):
-        p2_array.append(sg.Point2(x, y))
-    p2 = sg.Polygon(p2_array)
+        p2_array.append([x, y])
+    v2 = np.array(p2_array)
+    p2 = Polytope(v2)
 
-    result = minkowski.minkowski_sum(p1, p2)
-    return result.outer_boundary().coords
+    result = p1 + p2
+    return result.V
 
 
 def add_car_to_reachset(xs_reach, ys_reach, theta_min, theta_max):
