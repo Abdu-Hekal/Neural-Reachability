@@ -25,7 +25,9 @@ import random
 import time
 from matplotlib.patches import Rectangle
 
-from shapely.geometry import Polygon as poly
+from shapely.geometry import Polygon as shapely_poly
+from pytope import Polytope as py_poly
+
 
 from mpire import WorkerPool
 
@@ -81,7 +83,7 @@ models = reach.get_models()
 theta_min_model = reach.get_theta_min_model()
 theta_max_model = reach.get_theta_max_model()
 
-obstacle = poly([(80, 8), (83, 8), (83, 15), (80, 15)])
+obstacle = shapely_poly([(80, 8), (83, 8), (83, 15), (80, 15)])
 
 
 class State:
@@ -195,9 +197,9 @@ def update_state(state, a, delta):
     elif delta <= -MAX_STEER:
         delta = -MAX_STEER
 
-    x_error = random.uniform(-0.1, 0.1)
-    y_error = random.uniform(-0.1, 0.1)
-    yaw_error = random.uniform(-0.1, 0.1)
+    x_error = 0 #random.uniform(-0.1, 0.1)
+    y_error = 0 #random.uniform(-0.1, 0.1)
+    yaw_error = 0 #random.uniform(-0.1, 0.1)
     state.x = state.x + state.v * math.cos(state.yaw) * DT + x_error * DT
     state.y = state.y + state.v * math.sin(state.yaw) * DT + y_error * DT
     state.yaw = state.yaw + state.v / WB * math.tan(delta) * DT + yaw_error * DT
@@ -469,9 +471,17 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
             # plot obstacles
             # specify the location of (left,bottom),width,height
-            car_box = poly([(state.x, state.y - 0.5), (state.x + 2.5, state.y - 0.5), (state.x + 2.5, state.y + 0.5),
-                            (state.x, state.y + 0.5)])
+
+            car_xs = [state.x, state.x+2.5, state.x+2.5, state.x]
+            car_ys = [state.y-1, state.y-1, state.y+1, state.y+1]
+            rot_car_xs, rot_car_ys = transform.rotate(car_xs, car_ys, state.y, state.x, state.y)
+            rot_car_coords = transform.get_coords(rot_car_xs, rot_car_ys)
+            print(rot_car_coords)
+            car_box = shapely_poly(rot_car_coords)
             plt.fill(*obstacle.exterior.xy)
+            if obstacle.intersects(car_box):
+                print(True)
+                break
 
             if ox is not None:
                 plt.plot(ox, oy, "xr", label="MPC")
@@ -611,9 +621,9 @@ def reachability(oa, odelta, state):
                                                         theta_max_list[0][reach_iter][0])
         final_reach_poly = transform.transform_poly(full_reach_poly, state.yaw, state.x, state.y)
 
-        reachpoly = poly(final_reach_poly.V)
-        if obstacle.intersects(reachpoly):
-            state.v = 0
+        # reachpoly = shapely_poly(final_reach_poly.V)
+        # if obstacle.intersects(reachpoly):
+        #     state.v = 0
 
         # print(obstacle.intersects(reachpoly))
         #final_reach_poly.plot()

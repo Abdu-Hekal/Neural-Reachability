@@ -71,9 +71,7 @@ def plot_oct(xs, ys):
 
 # Press the green button in the gutter to run the script.
 
-def rotate(xs, ys, angle):
-    cx = 0
-    cy = 0
+def rotate(xs, ys, angle, cx=0, cy=0):
     xs = np.array(xs)
     ys = np.array(ys)
     xs -= cx
