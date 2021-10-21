@@ -41,14 +41,14 @@ def uncertain_theta_effect(delta_theta):
 def minkowski_sum(p1, p2):
 
     result = p1 + p2
-    return result.V
+    return result
 
 
 def add_car_to_reachset(poly_reach, theta_min, theta_max):
     final_car_poly = car_points(theta_min, theta_max)
-    full_reach_coords = minkowski_sum(poly_reach, final_car_poly)
+    full_reach_poly = minkowski_sum(poly_reach, final_car_poly)
 
-    return full_reach_coords
+    return full_reach_poly
 
 # if __name__ == '__main__':
     # plt.figure()

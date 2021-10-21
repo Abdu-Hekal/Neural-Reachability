@@ -35,6 +35,13 @@ def transform(xs, ys, angle, xd, yd):
     return xs_trans, ys_trans
 
 
+def transform_poly(poly, angle, xd, yd):
+    rot_poly = poly_rotate(poly, angle)
+    trans_poly = translate_poly(rot_poly, xd, yd)
+
+    return trans_poly
+
+
 def transform_file(name, angle, xd, yd):
     f = open(name, "r")
     xs = []
@@ -95,6 +102,13 @@ def translate(xs, ys, xd, yd):  # xd, yd are differnce in xs and ys required for
     ys += yd
 
     return xs, ys
+
+
+def translate_poly(poly, xd, yd):
+    pd = [xd, yd]
+    trans_poly = poly + pd
+
+    return trans_poly
 
 
 if __name__ == '__main__':

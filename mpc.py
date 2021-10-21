@@ -464,24 +464,8 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
                                          lambda event: [exit(0) if event.key == 'escape' else None])
 
             # plot reachset
-            parallel_start = timeit.default_timer()
 
-            input_list = []
-            for i in range(100):
-                nn_input = [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4],
-                            odelta[4],
-                            state.v]
-                input_list.append(nn_input)
-            gpu_input_list = reach.gpu_inputs_list(input_list)
-            sf_list = reach.get_reachset(gpu_input_list, models)
-            theta_min_list = reach.get_theta_min_list(gpu_input_list, theta_min_model)
-            theta_max_list = reach.get_theta_max_list(gpu_input_list, theta_max_model)
-
-            for reach_iter in range(100):
-                reachability(sf_list, theta_min_list, theta_max_list, state, reach_iter)
-
-            parallel_stop = timeit.default_timer()
-            print('parallel Time Taken: ', (parallel_stop - parallel_start))
+            reachability(oa, odelta, state)
 
             # plot obstacles
             # specify the location of (left,bottom),width,height
@@ -603,20 +587,39 @@ def get_switch_back_course(dl):
     return cx, cy, cyaw, ck
 
 
-def reachability(sf_list, theta_min_list, theta_max_list, state, reach_iter):
-    new_sf_list = []
-    for dirs in range(len(sf_list)):
-        new_sf_list.append(sf_list[dirs][0][reach_iter][0])
-    poly_reach = reach.sf_to_poly(new_sf_list)
+def reachability(oa, odelta, state):
+    parallel_start = timeit.default_timer()
 
-    full_vertices = car_reach.add_car_to_reachset(poly_reach, theta_min_list[0][reach_iter][0],                                                 theta_max_list[0][reach_iter][0])
-    # coords = transform.transform_coords(full_vertices, state.yaw, state.x, state.y)
-    #
-    # #pypoman.polygon.plot_polygon(coords)
-    # reachpoly = poly(coords)
-    # print(obstacle.intersects(reachpoly))
-    # if obstacle.intersects(reachpoly):
-    #     state.v = 0
+    input_list = []
+    for i in range(100):
+        nn_input = [i + 1, oa[0], odelta[0], oa[1], odelta[1], oa[2], odelta[2], oa[3], odelta[3], oa[4],
+                    odelta[4],
+                    state.v]
+        input_list.append(nn_input)
+    gpu_input_list = reach.gpu_inputs_list(input_list)
+    sf_list = reach.get_reachset(gpu_input_list, models)
+    theta_min_list = reach.get_theta_min_list(gpu_input_list, theta_min_model)
+    theta_max_list = reach.get_theta_max_list(gpu_input_list, theta_max_model)
+
+    for reach_iter in range(100):
+        new_sf_list = []
+        for dirs in range(len(sf_list)):
+            new_sf_list.append(sf_list[dirs][0][reach_iter][0])
+        poly_reach = reach.sf_to_poly(new_sf_list)
+
+        full_reach_poly = car_reach.add_car_to_reachset(poly_reach, theta_min_list[0][reach_iter][0],
+                                                        theta_max_list[0][reach_iter][0])
+        final_reach_poly = transform.transform_poly(full_reach_poly, state.yaw, state.x, state.y)
+
+        reachpoly = poly(final_reach_poly.V)
+        if obstacle.intersects(reachpoly):
+            state.v = 0
+
+        # print(obstacle.intersects(reachpoly))
+        #final_reach_poly.plot()
+
+    parallel_stop = timeit.default_timer()
+    print('parallel Time Taken: ', (parallel_stop - parallel_start))
 
 
 def main():
