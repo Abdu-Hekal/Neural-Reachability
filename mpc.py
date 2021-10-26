@@ -22,12 +22,10 @@ import multiprocessing as mp
 
 import timeit
 import random
-import time
 from matplotlib.patches import Rectangle
 
 from shapely.geometry import Polygon as shapely_poly
 from pytope import Polytope as py_poly
-
 
 from mpire import WorkerPool
 
@@ -47,7 +45,7 @@ T = 5  # horizon length
 # mpc parameters
 R = np.diag([0.01, 0.01])  # input cost matrix
 Rd = np.diag([0.01, 1])  # input difference cost matrix
-Q = np.diag([0.1, 0.1, 0.5, 0.5])  # state cost matrix
+Q = np.diag([0.01, 0.01, 0.5, 0.5])  # state cost matrix
 Qf = Q  # state final matrix
 GOAL_DIS = 1.5  # goal distance
 STOP_SPEED = 0.5 / 3.6  # stop speed
@@ -82,8 +80,6 @@ show_animation = True
 models = reach.get_models()
 theta_min_model = reach.get_theta_min_model()
 theta_max_model = reach.get_theta_max_model()
-
-obstacle = shapely_poly([(80, 8), (83, 8), (83, 15), (80, 15)])
 
 
 class State:
@@ -197,9 +193,9 @@ def update_state(state, a, delta):
     elif delta <= -MAX_STEER:
         delta = -MAX_STEER
 
-    x_error = 0 #random.uniform(-0.1, 0.1)
-    y_error = 0 #random.uniform(-0.1, 0.1)
-    yaw_error = 0 #random.uniform(-0.1, 0.1)
+    x_error = random.uniform(-0.1, 0.1)
+    y_error = random.uniform(-0.1, 0.1)
+    yaw_error = random.uniform(-0.1, 0.1)
     state.x = state.x + state.v * math.cos(state.yaw) * DT + x_error * DT
     state.y = state.y + state.v * math.sin(state.yaw) * DT + y_error * DT
     state.yaw = state.yaw + state.v / WB * math.tan(delta) * DT + yaw_error * DT
@@ -415,20 +411,16 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
         state.yaw += math.pi * 2.0
 
     time = 0.0
-    x = [state.x]
-    y = [state.y]
-    yaw = [state.yaw]
-    v = [state.v]
-    t = [0.0]
-    d = [0.0]
-    a = [0.0]
+
     target_ind, _ = calc_nearest_index(state, cx, cy, cyaw, 0)
 
     odelta, oa = None, None
 
     cyaw = smooth_yaw(cyaw)
 
+    safe = True
     while MAX_TIME >= time:
+
         xref, target_ind, dref = calc_ref_trajectory(
             state, cx, cy, cyaw, ck, sp, dl, target_ind)
 
@@ -447,14 +439,6 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
         state = update_state(state, ai, di)  # di is steering angle (delta)
         time = time + DT
 
-        x.append(state.x)
-        y.append(state.y)
-        yaw.append(state.yaw)
-        v.append(state.v)
-        t.append(time)
-        d.append(di)
-        a.append(ai)
-
         if check_goal(state, goal, target_ind, len(cx)):
             print("Goal")
             break
@@ -467,26 +451,26 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
             # plot reachset
 
-            reachability(oa, odelta, state)
+            # safe = reachability(oa, odelta, state)
+
 
             # plot obstacles
             # specify the location of (left,bottom),width,height
 
-            car_xs = [state.x, state.x+2.5, state.x+2.5, state.x]
-            car_ys = [state.y-1, state.y-1, state.y+1, state.y+1]
-            rot_car_xs, rot_car_ys = transform.rotate(car_xs, car_ys, state.y, state.x, state.y)
+            car_xs = [state.x, state.x + 2.5, state.x + 2.5, state.x]
+            car_ys = [state.y - 1, state.y - 1, state.y + 1, state.y + 1]
+            rot_car_xs, rot_car_ys = transform.rotate(car_xs, car_ys, state.yaw, state.x, state.y)
             rot_car_coords = transform.get_coords(rot_car_xs, rot_car_ys)
-            print(rot_car_coords)
             car_box = shapely_poly(rot_car_coords)
             plt.fill(*obstacle.exterior.xy)
             if obstacle.intersects(car_box):
-                print(True)
+                safe = False
+                print("car crashes into obstacle")
                 break
 
             if ox is not None:
                 plt.plot(ox, oy, "xr", label="MPC")
             plt.plot(cx, cy, "-r", label="course")
-            plt.plot(x, y, "ob", label="trajectory")
             plt.plot(xref[0, :], xref[1, :], "xk", label="xref")
             plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
             plot_car(state.x, state.y, state.yaw, steer=di)
@@ -494,8 +478,17 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             plt.grid(True)
             plt.title("Time[s]:" + str(round(time, 2))
                       + ", speed[km/h]:" + str(round(state.v * 3.6, 2)))
+
             plt.pause(0.0001)
-    return t, x, y, yaw, v, d, a
+            if not safe:
+                print("reachable set intersects with obstacle")
+                break
+            elif obstacle.intersects(car_box):
+                print("car crashes into obstacle")
+                break
+
+    plt.close("all")
+    return safe
 
 
 def calc_speed_profile(cx, cy, cyaw, target_speed):
@@ -550,54 +543,44 @@ def get_straight_course(dl):
     return cx, cy, cyaw, ck
 
 
-def get_straight_course2(dl):
-    ax = [0.0, -10.0, -20.0, -40.0, -50.0, -60.0, -70.0]
-    ay = [0.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0]
+def get_left_turn_course(dl):
+    ax = [0, 10, 20, 21.0, 30.0, 35, 36, 36, 36]
+    ay = [0, 0, 0, 0, 1.0, 5.0, 10, 15, 20]
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax, ay, ds=dl)
 
     return cx, cy, cyaw, ck
 
 
-def get_straight_course3(dl):
-    ax = [0.0, -10.0, -20.0, -40.0, -50.0, -60.0, -70.0]
-    ay = [0.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0]
-    cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
-        ax, ay, ds=dl)
-
-    cyaw = [i - math.pi for i in cyaw]
-
-    return cx, cy, cyaw, ck
-
-
-def get_forward_course(dl):
-    ax = [0.0, 60.0, 125.0, 50.0, 75.0, 30.0, -10.0]
-    ay = [0.0, 0.0, 50.0, 65.0, 30.0, 50.0, -20.0]
+def get_right_turn_course(dl):
+    ax = [0, 10, 20, 21.0, 30.0, 35, 36, 36, 36]
+    ay = [0, 0, 0, 0, -1.0, -5.0, -10, -15, -20]
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax, ay, ds=dl)
 
     return cx, cy, cyaw, ck
 
 
-def get_switch_back_course(dl):
-    ax = [0.0, 30.0, 6.0, 20.0, 35.0]
-    ay = [0.0, 0.0, 20.0, 35.0, 20.0]
+def get_uturn_course(dl):
+    ax = [0, 10, 20, 30, 35, 36, 35, 30, 20, 10]
+    ay = [0, 0, 0, 1, 3, 5, 7, 9, 10, 10]
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax, ay, ds=dl)
-    ax = [35.0, 10.0, 0.0, 0.0]
-    ay = [20.0, 30.0, 5.0, 0.0]
-    cx2, cy2, cyaw2, ck2, s2 = cubic_spline_planner.calc_spline_course(
+
+    return cx, cy, cyaw, ck
+
+
+def get_change_lane_course(dl):
+    ax = [0, 10, 20, 30, 40, 50, 60]
+    ay = [0, 0, 0, 2, 4, 4, 4]
+    cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax, ay, ds=dl)
-    cyaw2 = [i - math.pi for i in cyaw2]
-    cx.extend(cx2)
-    cy.extend(cy2)
-    cyaw.extend(cyaw2)
-    ck.extend(ck2)
 
     return cx, cy, cyaw, ck
 
 
 def reachability(oa, odelta, state):
+    safe = True
     parallel_start = timeit.default_timer()
 
     input_list = []
@@ -621,101 +604,66 @@ def reachability(oa, odelta, state):
                                                         theta_max_list[0][reach_iter][0])
         final_reach_poly = transform.transform_poly(full_reach_poly, state.yaw, state.x, state.y)
 
-        # reachpoly = shapely_poly(final_reach_poly.V)
-        # if obstacle.intersects(reachpoly):
-        #     state.v = 0
+        reachpoly = shapely_poly(final_reach_poly.V)
+        if obstacle.intersects(reachpoly):
+            safe = False
 
         # print(obstacle.intersects(reachpoly))
-        #final_reach_poly.plot()
+        # final_reach_poly.plot()
 
     parallel_stop = timeit.default_timer()
     print('parallel Time Taken: ', (parallel_stop - parallel_start))
 
+    return safe
 
-def main():
+
+def main(course_num):
     print(__file__ + " start!!")
 
     dl = 1.0  # course tick
-    # cx, cy, cyaw, ck = get_straight_course(dl)
-    # cx, cy, cyaw, ck = get_straight_course2(dl)
-    # cx, cy, cyaw, ck = get_straight_course3(dl)
-    cx, cy, cyaw, ck = get_forward_course(dl)
-    # cx, cy, cyaw, ck = get_switch_back_course(dl)
+    courses = []
+    courses.append(get_straight_course(dl))
+    courses.append(get_left_turn_course(dl))
+    courses.append(get_right_turn_course(dl))
+    courses.append(get_uturn_course(dl))
+    courses.append(get_change_lane_course(dl))
+
+    cx, cy, cyaw, ck = courses[course_num]
 
     sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
 
     initial_state = State(x=cx[0], y=cy[0], yaw=cyaw[0], v=0.0)
 
-    t, x, y, yaw, v, d, a = do_simulation(
-        cx, cy, cyaw, ck, sp, dl, initial_state)
+    safe = do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state)
 
-    print(x)
+    plt.show()
 
-    if show_animation:  # pragma: no cover
-        plt.close("all")
-        plt.subplots()
-        plt.plot(cx, cy, "-r", label="spline")
-        plt.plot(x, y, "-g", label="tracking")
-        plt.grid(True)
-        plt.axis("equal")
-        plt.xlabel("x[m]")
-        plt.ylabel("y[m]")
-        plt.legend()
-
-        plt.subplots()
-        plt.plot(t, v, "-r", label="speed")
-        plt.grid(True)
-        plt.xlabel("Time [s]")
-        plt.ylabel("Speed [kmh]")
-
-        plt.subplots()
-        plt.plot(t, a, "-r", label="acceleration")
-        plt.grid(True)
-        plt.xlabel("Time [s]")
-        plt.ylabel("acc [kmh]")
-
-        plt.show()
+    return safe
 
 
-def main2():
-    print(__file__ + " start!!")
+def get_obstacle(obstacle_num):
+    obstacles = []
+    straight_obs = shapely_poly([(10, 1.5), (50, 1.5), (50, 5), (10, 5)])  # semi-done
+    obstacles.append(straight_obs)
+    left_obs = shapely_poly([(37, -10), (39, -10), (39, 20), (37, 20)])  # semi-done
+    obstacles.append(left_obs)
+    right_obs = shapely_poly([(37, 10), (39, 10), (39, -20), (37, -20)])  # semi-done
+    obstacles.append(right_obs)
+    uturn_obst = shapely_poly([(10, 2.5), (30, 2.5), (33, 4), (33, 6), (30, 7.5), (10, 7.5)])  # done
+    obstacles.append(uturn_obst)
+    change_lane_obst = shapely_poly([(35, 0), (60, 0), (60, 2), (35, 2)])  # done
+    obstacles.append(change_lane_obst)
 
-    dl = 1.0  # course tick
-    cx, cy, cyaw, ck = get_straight_course3(dl)
-
-    sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
-
-    initial_state = State(x=cx[0], y=cy[0], yaw=0.0, v=0.0)
-
-    t, x, y, yaw, v, d, a = do_simulation(
-        cx, cy, cyaw, ck, sp, dl, initial_state)
-
-    if show_animation:  # pragma: no cover
-        plt.close("all")
-        plt.subplots()
-        plt.plot(cx, cy, "-r", label="spline")
-        plt.plot(x, y, "-g", label="tracking")
-        plt.grid(True)
-        plt.axis("equal")
-        plt.xlabel("x[m]")
-        plt.ylabel("y[m]")
-        plt.legend()
-
-        plt.subplots()
-        plt.plot(t, v, "-r", label="speed")
-        plt.grid(True)
-        plt.xlabel("Time [s]")
-        plt.ylabel("Speed [kmh]")
-
-        plt.subplots()
-        plt.plot(t, a, "-r", label="acceleration")
-        plt.grid(True)
-        plt.xlabel("Time [s]")
-        plt.ylabel("acc [kmh]")
-
-        plt.show()
+    return obstacles[obstacle_num]
 
 
 if __name__ == '__main__':
-    main()
-    # main2()
+    benchmark = 4
+    crashes = 0
+    for i in range(100):
+        random.seed(i)
+        obstacle = get_obstacle(benchmark)
+        safe_run = main(benchmark)
+        if not safe_run:
+            crashes += 1
+    print("number of crashes: ",crashes)
