@@ -617,16 +617,13 @@ def reachability(oa, odelta, state):
     return safe
 
 
-def main(course_num):
+def main(course_num, parallel_iter):
+    random.seed(parallel_iter)
     print(__file__ + " start!!")
 
     dl = 1.0  # course tick
-    courses = []
-    courses.append(get_straight_course(dl))
-    courses.append(get_left_turn_course(dl))
-    courses.append(get_right_turn_course(dl))
-    courses.append(get_uturn_course(dl))
-    courses.append(get_change_lane_course(dl))
+    courses = [get_straight_course(dl), get_left_turn_course(dl), get_right_turn_course(dl), get_uturn_course(dl),
+               get_change_lane_course(dl)]
 
     cx, cy, cyaw, ck = courses[course_num]
 
@@ -651,7 +648,7 @@ def get_obstacle(obstacle_num):
     obstacles.append(right_obs)
     uturn_obst = shapely_poly([(10, 2.5), (30, 2.5), (33, 4), (33, 6), (30, 7.5), (10, 7.5)])  # done
     obstacles.append(uturn_obst)
-    change_lane_obst = shapely_poly([(35, 0), (60, 0), (60, 2), (35, 2)])  # done
+    change_lane_obst = shapely_poly([(34.5, 0), (60, 0), (60, 2), (34.5, 2)])  # done
     obstacles.append(change_lane_obst)
 
     return obstacles[obstacle_num]
@@ -660,10 +657,13 @@ def get_obstacle(obstacle_num):
 if __name__ == '__main__':
     benchmark = 4
     crashes = 0
-    for i in range(100):
-        random.seed(i)
-        obstacle = get_obstacle(benchmark)
-        safe_run = main(benchmark)
-        if not safe_run:
-            crashes += 1
-    print("number of crashes: ",crashes)
+    obstacle = get_obstacle(benchmark)
+    # for i in range(100):
+    #     random.seed(i)
+    #     safe_run = main(benchmark, i)
+    #     if not safe_run:
+    #         crashes += 1
+
+    with WorkerPool(n_jobs=8, shared_objects=benchmark) as pool:
+        safety_list = pool.map(main, range(100))
+    print("number of crashes: ", 100-sum(safety_list))
