@@ -30,6 +30,7 @@ from pytope import Polytope as py_poly
 from mpire import WorkerPool
 
 import threading
+from statistics import mean
 
 sys.path.append("../../../PathPlanning/CubicSpline/")
 
@@ -419,6 +420,9 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
     cyaw = smooth_yaw(cyaw)
 
     safe = True
+    intersect = False
+    rec_times = []
+    intersect_times = []
     while MAX_TIME >= time:
 
         xref, target_ind, dref = calc_ref_trajectory(
@@ -451,7 +455,12 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
 
             # plot reachset
 
-            # safe = reachability(oa, odelta, state)
+            intersect, rec_time = reachability(oa, odelta, state)
+            # if intersect:
+            #     intersect_times.append(rec_time)
+            # rec_times.append(rec_time)
+
+
 
 
             # plot obstacles
@@ -463,10 +472,6 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             rot_car_coords = transform.get_coords(rot_car_xs, rot_car_ys)
             car_box = shapely_poly(rot_car_coords)
             plt.fill(*obstacle.exterior.xy)
-            if obstacle.intersects(car_box):
-                safe = False
-                print("car crashes into obstacle")
-                break
 
             if ox is not None:
                 plt.plot(ox, oy, "xr", label="MPC")
@@ -475,20 +480,20 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             plt.plot(cx[target_ind], cy[target_ind], "xg", label="target")
             plot_car(state.x, state.y, state.yaw, steer=di)
             plt.axis("equal")
-            plt.grid(True)
+            plt.grid(False)
             plt.title("Time[s]:" + str(round(time, 2))
                       + ", speed[km/h]:" + str(round(state.v * 3.6, 2)))
 
             plt.pause(0.0001)
-            if not safe:
+            if intersect:
                 print("reachable set intersects with obstacle")
                 break
             elif obstacle.intersects(car_box):
                 print("car crashes into obstacle")
+                safe = False
                 break
 
-    plt.close("all")
-    return safe
+    return safe, rec_times, intersect_times
 
 
 def calc_speed_profile(cx, cy, cyaw, target_speed):
@@ -580,8 +585,8 @@ def get_change_lane_course(dl):
 
 
 def reachability(oa, odelta, state):
-    safe = True
-    parallel_start = timeit.default_timer()
+    intersect = False
+    start = timeit.default_timer()
 
     input_list = []
     for i in range(100):
@@ -594,7 +599,7 @@ def reachability(oa, odelta, state):
     theta_min_list = reach.get_theta_min_list(gpu_input_list, theta_min_model)
     theta_max_list = reach.get_theta_max_list(gpu_input_list, theta_max_model)
 
-    for reach_iter in range(100):
+    for reach_iter in range(100): # range(99, -1, -1)
         new_sf_list = []
         for dirs in range(len(sf_list)):
             new_sf_list.append(sf_list[dirs][0][reach_iter][0])
@@ -605,16 +610,20 @@ def reachability(oa, odelta, state):
         final_reach_poly = transform.transform_poly(full_reach_poly, state.yaw, state.x, state.y)
 
         reachpoly = shapely_poly(final_reach_poly.V)
+
         if obstacle.intersects(reachpoly):
-            safe = False
+            intersect = True
+            intersect_stop = timeit.default_timer()
+            intersect_time = (intersect_stop - start)
+            return intersect, intersect_time
 
         # print(obstacle.intersects(reachpoly))
-        # final_reach_poly.plot()
+        final_reach_poly.plot(edgecolor='green')
 
-    parallel_stop = timeit.default_timer()
-    print('parallel Time Taken: ', (parallel_stop - parallel_start))
+    final_stop = timeit.default_timer()
+    rec_time = (final_stop - start)
 
-    return safe
+    return intersect, rec_time
 
 
 def main(course_num, parallel_iter):
@@ -631,11 +640,11 @@ def main(course_num, parallel_iter):
 
     initial_state = State(x=cx[0], y=cy[0], yaw=cyaw[0], v=0.0)
 
-    safe = do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state)
+    safe, rec_times, intersect_times = do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state)
 
     plt.show()
 
-    return safe
+    return safe, rec_times, intersect_times
 
 
 def get_obstacle(obstacle_num):
@@ -646,7 +655,7 @@ def get_obstacle(obstacle_num):
     obstacles.append(left_obs)
     right_obs = shapely_poly([(37, 10), (39, 10), (39, -20), (37, -20)])  # semi-done
     obstacles.append(right_obs)
-    uturn_obst = shapely_poly([(10, 2.5), (30, 2.5), (33, 4), (33, 6), (30, 7.5), (10, 7.5)])  # done
+    uturn_obst = shapely_poly([(30, 2.5), (33, 4), (33, 6), (30, 7.5)])  # done
     obstacles.append(uturn_obst)
     change_lane_obst = shapely_poly([(34.5, 0), (60, 0), (60, 2), (34.5, 2)])  # done
     obstacles.append(change_lane_obst)
@@ -655,15 +664,23 @@ def get_obstacle(obstacle_num):
 
 
 if __name__ == '__main__':
-    benchmark = 4
+    benchmark = 1
     crashes = 0
     obstacle = get_obstacle(benchmark)
-    # for i in range(100):
-    #     random.seed(i)
-    #     safe_run = main(benchmark, i)
-    #     if not safe_run:
-    #         crashes += 1
+    all_rec_times = []
+    all_intersect_times = []
+    for i in range(1):
+        random.seed(i)
+        safe_run, rec_times, intersect_times = main(benchmark, i)
+        all_rec_times += rec_times
+        all_intersect_times += intersect_times
+        if not safe_run:
+            crashes += 1
+    # print("maximum execution time: ", max(all_rec_times))
+    # print("mean execution time: ", mean(all_rec_times))
+    # print("maximum intersection time: ", max(all_intersect_times))
+    # print("mean intersection time: ", mean(all_intersect_times))
 
-    with WorkerPool(n_jobs=8, shared_objects=benchmark) as pool:
-        safety_list = pool.map(main, range(100))
-    print("number of crashes: ", 100-sum(safety_list))
+    # with WorkerPool(n_jobs=8, shared_objects=benchmark) as pool:
+    #     safety_list = pool.map(main, range(100))
+    # print("number of crashes: ", 100-sum(safety_list))

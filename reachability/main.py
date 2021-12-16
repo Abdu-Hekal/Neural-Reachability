@@ -68,7 +68,7 @@ def get_reachset(inputs_list, models):
         rnn_forward = models[i][0].forward(x.float().view(1, len(x), 12))
         val = models[i][1].forward(rnn_forward[0])
         val = (val * y_std[i]) + y_mean[i]
-        val = val.add(0.02)
+        val = val.add(0.1)  # bloating
         val = val.tolist()
         sf_list.append(val)
 
