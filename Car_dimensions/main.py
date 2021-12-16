@@ -1,14 +1,3 @@
-# import os, sys
-#
-# currentdir = os.path.dirname(os.path.realpath(__file__))
-# parentdir = os.path.dirname(currentdir)
-# sys.path.append(parentdir)
-
-# import matplotlib.pyplot as plt
-# import pypoman
-
-import skgeom as sg
-from skgeom import minkowski
 import reachset_transform.main as transform
 import numpy as np
 from pytope import Polytope
