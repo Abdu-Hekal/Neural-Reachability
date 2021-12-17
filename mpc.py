@@ -460,12 +460,6 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             #     intersect_times.append(rec_time)
             # rec_times.append(rec_time)
 
-
-
-
-            # plot obstacles
-            # specify the location of (left,bottom),width,height
-
             car_xs = [state.x, state.x + 2.5, state.x + 2.5, state.x]
             car_ys = [state.y - 1, state.y - 1, state.y + 1, state.y + 1]
             rot_car_xs, rot_car_ys = transform.rotate(car_xs, car_ys, state.yaw, state.x, state.y)
@@ -599,7 +593,7 @@ def reachability(oa, odelta, state):
     theta_min_list = reach.get_theta_min_list(gpu_input_list, theta_min_model)
     theta_max_list = reach.get_theta_max_list(gpu_input_list, theta_max_model)
 
-    for reach_iter in range(100): # range(99, -1, -1)
+    for reach_iter in range(100):  # range(99, -1, -1)
         new_sf_list = []
         for dirs in range(len(sf_list)):
             new_sf_list.append(sf_list[dirs][0][reach_iter][0])
@@ -663,13 +657,11 @@ def get_obstacle(obstacle_num):
     return obstacles[obstacle_num]
 
 
-if __name__ == '__main__':
-    benchmark = 1
+def collect_stats(benchmark):
     crashes = 0
-    obstacle = get_obstacle(benchmark)
     all_rec_times = []
     all_intersect_times = []
-    for i in range(1):
+    for i in range(100):
         random.seed(i)
         safe_run, rec_times, intersect_times = main(benchmark, i)
         all_rec_times += rec_times
@@ -684,3 +676,20 @@ if __name__ == '__main__':
     # with WorkerPool(n_jobs=8, shared_objects=benchmark) as pool:
     #     safety_list = pool.map(main, range(100))
     # print("number of crashes: ", 100-sum(safety_list))
+
+
+def run_benchmark(benchmark):
+    i = 0
+    main(benchmark, i)
+
+
+if __name__ == '__main__':
+    try:
+        bench = int(sys.argv[1])
+    except ValueError:
+        print("Please enter an integer between 0-4 to chose one of the five benchmarks")
+    if 0 <= bench <= 4:
+        obstacle = get_obstacle(bench)
+        run_benchmark(bench)
+    else:
+        print("Please enter an integer between 0-4 to chose one of the five benchmarks")
