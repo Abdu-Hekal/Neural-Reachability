@@ -1,3 +1,10 @@
+"""
+
+Incorporating car dimensions into computed reachable sets
+
+author: Abdelrahman Hekal
+
+"""
 import reachset_transform.main as transform
 import numpy as np
 from pytope import Polytope
@@ -10,6 +17,10 @@ car_ys = [-1.0, -1.0, 1.0, 1.0]
 
 
 def car_points(theta_min, theta_max):
+    """
+   Add effect of uncertainty in orientation by enlarging box that represents car.
+   Then rotate car to current orientation
+   """
     theta = (theta_min + theta_max) / 2
     delta_theta = theta_max - theta  # or theta - theta_min
     new_car_poly = uncertain_theta_effect(delta_theta)
@@ -18,6 +29,9 @@ def car_points(theta_min, theta_max):
 
 
 def uncertain_theta_effect(delta_theta):
+    """
+   Add effect of uncertainty in orientation by enlarging box that represents car.
+   """
     rot_xs, rot_ys = transform.rotate(car_xs, car_ys, delta_theta)
     neg_rot_xs, neg_rot_ys = transform.rotate(car_xs, car_ys, -delta_theta)
 
@@ -34,36 +48,10 @@ def minkowski_sum(p1, p2):
 
 
 def add_car_to_reachset(poly_reach, theta_min, theta_max):
+    """
+   Add dimensions of vehicle to computed reachset for midpoint of rear-axle
+   """
     final_car_poly = car_points(theta_min, theta_max)
     full_reach_poly = minkowski_sum(poly_reach, final_car_poly)
 
     return full_reach_poly
-
-# if __name__ == '__main__':
-    # plt.figure()
-    # coords = []
-    # for xs, ys in zip(car_xs, car_ys):
-    #     coords.append([xs, ys])
-    #
-    # pypoman.polygon.plot_polygon(coords, alpha=0.5)
-    #
-    # new_xs, new_ys = transform.rotate(car_xs, car_ys, 0.15)
-    # coords = []
-    # for xs, ys in zip(new_xs, new_ys):
-    #     coords.append([xs, ys])
-    # pypoman.polygon.plot_polygon(coords, alpha=0.2)
-
-    # new_xs, new_ys = uncertain_theta_effect(0.15)
-    # coords = []
-    # for xs, ys in zip(new_xs, new_ys):
-    #     coords.append([xs, ys])
-    # pypoman.polygon.plot_polygon(coords, alpha=0.4, color='r')
-    #
-    # rot_xs, rot_ys = transform.rotate(new_xs, new_ys, 0.4)
-    # coords = []
-    # for xs, ys in zip(rot_xs, rot_ys):
-    #     coords.append([xs, ys])
-    # pypoman.polygon.plot_polygon(coords, alpha=0.1, color='r')
-    #
-    #
-    # plt.show()

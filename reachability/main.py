@@ -1,10 +1,10 @@
-#!/usr/bin/env python
-# coding: utf-8
+"""
 
-# In[ ]:
+Generating untransformed reachable sets from trained neural networks using control inputs and initial sets
 
+author: Abdelrahman Hekal
 
-# -*- coding: utf-8 -*-
+"""
 import numpy
 import torch
 
@@ -24,6 +24,9 @@ print(device)
 
 
 def load_checkpoint(filepath):
+    """
+   Load trained neural network
+   """
     checkpoint = torch.load(filepath, map_location=torch.device('cpu'))
     model = checkpoint['model']
     model.load_state_dict(checkpoint['state_dict'])
@@ -37,6 +40,9 @@ def load_checkpoint(filepath):
 
 
 def get_models():
+    """
+   Get a list of the eight trained neural network corresponding to each template direction
+   """
     models = []
     for i in range(8):
         file = 'reachability/bicyclemodels/new_bicycle_dir' + str(i + 1) + '_100kSamples_100kEpochs.pth'
@@ -46,6 +52,9 @@ def get_models():
 
 
 def gpu_inputs_list(inputs_list):
+    """
+   Get input list and standardize it
+   """
     x = torch.tensor(inputs_list).to(device)
 
     x_mean = 4.5028
@@ -57,6 +66,9 @@ def gpu_inputs_list(inputs_list):
 
 
 def get_reachset(inputs_list, models):
+    """
+    Compute untransformed reachable set based on input and bloat the output to bias for overapproximation
+   """
     sf_list = []
     # test data for initial region as shown in JuliaReach documentation
     x = inputs_list
@@ -76,6 +88,9 @@ def get_reachset(inputs_list, models):
 
 
 def sf_to_poly(sf):
+    """
+   Combine computed support value with corresponding support directions and store as a polytope
+   """
     A = [
         [1, 1],
         [0, 1],
@@ -93,7 +108,9 @@ def sf_to_poly(sf):
 
 
 def get_theta_min_list(inputs_list, model):
-    # test data for initial region as shown in JuliaReach documentation
+    """
+   Get list of minimum orientations for each reach image
+   """
     x = inputs_list
 
     y_std = 0.4052
@@ -108,6 +125,9 @@ def get_theta_min_list(inputs_list, model):
 
 
 def get_theta_max_list(inputs_list, model_optim):
+    """
+   Get list of maximum orientations for each reach image
+   """
     # test data for initial region as shown in JuliaReach documentation
     x = inputs_list
 

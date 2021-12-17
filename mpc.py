@@ -4,6 +4,8 @@ Path tracking simulation with iterative linear model predictive control for spee
 
 author: Atsushi Sakai (@Atsushi_twi)
 
+Edited by: Abdelrahman Hekal
+
 """
 
 import math
@@ -32,7 +34,7 @@ from mpire import WorkerPool
 import threading
 from statistics import mean
 
-sys.path.append("../../../PathPlanning/CubicSpline/")
+sys.path.append("CubicSpline/")
 
 try:
     import cubic_spline_planner
@@ -254,7 +256,7 @@ def predict_motion(x0, oa, od, xref):
 
 def iterative_linear_mpc_control(xref, x0, dref, oa, od):
     """
-   MPC contorl with updating operational point iteraitvely
+   MPC control with updating operational point iteratively
    """
 
     if oa is None or od is None:
@@ -390,7 +392,7 @@ def check_goal(state, goal, tind, nind):
 
 def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
     """
-   Simulation
+   Simulation and plot reachable sets
 
    cx: course x position list
    cy: course y position list
@@ -453,12 +455,11 @@ def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
             plt.gcf().canvas.mpl_connect('key_release_event',
                                          lambda event: [exit(0) if event.key == 'escape' else None])
 
-            # plot reachset
-
+            # run reachability analysis and plot reachset
             intersect, rec_time = reachability(oa, odelta, state)
-            # if intersect:
-            #     intersect_times.append(rec_time)
-            # rec_times.append(rec_time)
+            if intersect:
+                intersect_times.append(rec_time)
+            rec_times.append(rec_time)
 
             car_xs = [state.x, state.x + 2.5, state.x + 2.5, state.x]
             car_ys = [state.y - 1, state.y - 1, state.y + 1, state.y + 1]
@@ -579,6 +580,11 @@ def get_change_lane_course(dl):
 
 
 def reachability(oa, odelta, state):
+    """
+    Generate reachable sets and check for intersection with obstacle
+
+   """
+
     intersect = False
     start = timeit.default_timer()
 
@@ -642,6 +648,11 @@ def main(course_num, parallel_iter):
 
 
 def get_obstacle(obstacle_num):
+    """
+   Get obstacle for corresponding benchmark
+
+   """
+
     obstacles = []
     straight_obs = shapely_poly([(10, 1.5), (50, 1.5), (50, 5), (10, 5)])  # semi-done
     obstacles.append(straight_obs)
@@ -658,6 +669,10 @@ def get_obstacle(obstacle_num):
 
 
 def collect_stats(benchmark):
+    """
+   Run simulations 100 times and collect stats
+   """
+
     crashes = 0
     all_rec_times = []
     all_intersect_times = []
@@ -668,10 +683,10 @@ def collect_stats(benchmark):
         all_intersect_times += intersect_times
         if not safe_run:
             crashes += 1
-    # print("maximum execution time: ", max(all_rec_times))
-    # print("mean execution time: ", mean(all_rec_times))
-    # print("maximum intersection time: ", max(all_intersect_times))
-    # print("mean intersection time: ", mean(all_intersect_times))
+    print("maximum execution time: ", max(all_rec_times))
+    print("mean execution time: ", mean(all_rec_times))
+    print("maximum intersection time: ", max(all_intersect_times))
+    print("mean intersection time: ", mean(all_intersect_times))
 
     # with WorkerPool(n_jobs=8, shared_objects=benchmark) as pool:
     #     safety_list = pool.map(main, range(100))
@@ -679,13 +694,18 @@ def collect_stats(benchmark):
 
 
 def run_benchmark(benchmark):
+
     i = 0
-    main(benchmark, i)
+    safe_run, rec_times, intersect_times = main(benchmark, i)
+    print("maximum execution time: ", max(rec_times))
+    print("mean execution time: ", mean(rec_times))
+    print("maximum intersection time: ", max(intersect_times))
+    print("mean intersection time: ", mean(intersect_times))
 
 
 if __name__ == '__main__':
     try:
-        bench = int(sys.argv[1])
+        bench = int(sys.argv[1]) - 1
     except ValueError:
         print("Please enter an integer between 0-4 to chose one of the five benchmarks")
     if 0 <= bench <= 4:

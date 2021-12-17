@@ -1,3 +1,11 @@
+"""
+
+Transform reachable sets to account for position and orientation.
+This is achieve by rotation and translation of the reachable sets.
+
+author: Abdelrahman Hekal
+
+"""
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -5,6 +13,9 @@ from pytope import Polytope
 
 
 def get_coords(xs, ys):
+    """
+   Get a list of coordinates from lists for x-points and y-points
+   """
     coords = []
     for x, y in zip(xs, ys):
         coord = [x, y]
@@ -13,6 +24,9 @@ def get_coords(xs, ys):
 
 
 def transform_coords(coords, angle, xd, yd):
+    """
+   rotate and translate coords by desired angle and position
+   """
     xs, ys = get_list(coords)
     xs_tr, ys_tr = transform(xs, ys, angle, xd, yd)
     coords = get_coords(xs_tr, ys_tr)
@@ -20,6 +34,9 @@ def transform_coords(coords, angle, xd, yd):
 
 
 def get_list(coords):
+    """
+   Get lists for x-points and y-points from a list of coordinates
+   """
     xs = []
     ys = []
     for coord in coords:
@@ -29,6 +46,9 @@ def get_list(coords):
 
 
 def transform(xs, ys, angle, xd, yd):
+    """
+   rotate and translate lists of x-points and y-points by desired angle and position
+   """
     xs_rot, ys_rot = rotate(xs, ys, angle)
     xs_trans, ys_trans = translate(xs_rot, ys_rot, xd, yd)
     # self.plot_oct(xs_trans, ys_trans)
@@ -36,6 +56,9 @@ def transform(xs, ys, angle, xd, yd):
 
 
 def transform_poly(poly, angle, xd, yd):
+    """
+   rotate and translate a polygon by desired angle and position
+   """
     rot_poly = poly_rotate(poly, angle)
     trans_poly = translate_poly(rot_poly, xd, yd)
 
@@ -43,6 +66,9 @@ def transform_poly(poly, angle, xd, yd):
 
 
 def transform_file(name, angle, xd, yd):
+    """
+   rotate and translate a file that contains vertices information outputted by Flow* by desired angle and position
+   """
     f = open(name, "r")
     xs = []
     ys = []
@@ -107,11 +133,3 @@ def translate_poly(poly, xd, yd):
     trans_poly = poly + pd
 
     return trans_poly
-
-
-if __name__ == '__main__':
-    plt.figure()
-    transform_file(name="data", angle=3.14, xd=2, yd=2)
-    plt.show()
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
