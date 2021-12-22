@@ -13,9 +13,18 @@ Maneuvers:
 
 ## How to use
 
-From terminal, run "python mpc.py {Maneuver number}" to visualise MPC with Reachability for a specified benchmark from 1 to 5.
+From terminal, run
+
+```bash
+python mpc.py <MANUEVER_NUMNER>
+```
+
+ to visualise MPC with Reachability for a specified benchmark from 1 to 5.
 
 ## Example
 
-"python mpc.py 2" runs MPC with reachability for the second Maneuver: Taking a left turn
+```bash
+python mpc.py 2
+```
+runs MPC with reachability for the second Maneuver: Taking a left turn
 
