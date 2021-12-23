@@ -1,6 +1,6 @@
 # MPC-Reachability
 
-This repository employs neural network reachability analysis to reason about the safety of an autonomous vehicle with an MPC controller. The vehicle aims to undertake five different maneuvers driven by the MPC controller while neural network reachability checks for intersections with obstacles to reason about safety 
+This repository employs neural network reachability analysis to reason about the safety of an autonomous vehicle with an MPC controller. The vehicle aims to undertake five different maneuvers driven by the MPC controller while neural network reachability checks for intersections with obstacles to reason about safety
 
 Maneuvers:
 
@@ -10,6 +10,13 @@ Maneuvers:
 4. Making a U-turn
 5. Changing lanes due to a roadblock
 
+## Install
+
+```bash
+git clone https://github.com/Abdu-Hekal/mpc-reachability.git
+cd mpc-reachability
+pip install -r requirements.txt
+```
 
 ## How to use
 
