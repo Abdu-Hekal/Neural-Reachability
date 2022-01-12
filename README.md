@@ -12,6 +12,8 @@ Maneuvers:
 
 ## Install
 
+We cheked this repo. with Ubuntu 20.04, Mac Big Sur Version 11.4, Windows 10.
+
 ```bash
 git clone https://github.com/Abdu-Hekal/mpc-reachability.git
 cd mpc-reachability
