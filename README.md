@@ -69,7 +69,7 @@ runs MPC with reachability for the second Maneuver: Taking a left turn
 
 This work on Neural reachability has been published at the 2022 IEEE 25th International Conference on Intelligent Transportation (ITSC), available [here](https://ieeexplore.ieee.org/abstract/document/9922294).
 
-If you cite FReak, please cite
+If you cite this work, please cite
 
 Bogomolov, S., Hekal, A., Hoxha, B. and Yamaguchi, T., 2022, October. Runtime Assurance for Autonomous Driving with Neural Reachability. In 2022 IEEE 25th International Conference on Intelligent Transportation Systems (ITSC) (pp. 2634-2641). IEEE.
 
