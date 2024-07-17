@@ -12,6 +12,7 @@ This repository employs neural reachability to reason about the safety of an aut
 - [Installation](#installation)
 - [Usage](#usage)
 - [Example](#example)
+- [Cititation](#Citation)
 - [Installation Issues](#installation-issues)
 
 ## Introduction
@@ -63,9 +64,30 @@ python mpc.py 2
 
 runs MPC with reachability for the second Maneuver: Taking a left turn
 
+
+## Citation
+
+This work on Neural reachability has been published at the 2022 IEEE 25th International Conference on Intelligent Transportation (ITSC), available [here](https://ieeexplore.ieee.org/abstract/document/9922294).
+
+If you cite FReak, please cite
+
+Bogomolov, S., Hekal, A., Hoxha, B. and Yamaguchi, T., 2022, October. Runtime Assurance for Autonomous Driving with Neural Reachability. In 2022 IEEE 25th International Conference on Intelligent Transportation Systems (ITSC) (pp. 2634-2641). IEEE.
+
+Bibtex:
+```
+@inproceedings{bogomolov2022runtime,
+  title={Runtime Assurance for Autonomous Driving with Neural Reachability},
+  author={Bogomolov, Sergiy and Hekal, Abdelrahman and Hoxha, Bardh and Yamaguchi, Tomoya},
+  booktitle={2022 IEEE 25th International Conference on Intelligent Transportation Systems (ITSC)},
+  pages={2634--2641},
+  year={2022},
+  organization={IEEE}
+}
+```
+
 ## Installation Issues
 
-When installing `pycddlib`, a common issue arises when the installation process fails to locate the `gmp.h` header file. This file is essential as it contains declarations necessary for using the GNU Multiple Precision Arithmetic Library (GMP). 
+When installing requirements which installs `pycddlib`, a common issue arises when the installation process fails to locate the `gmp.h` header file. This file is essential as it contains declarations necessary for using the GNU Multiple Precision Arithmetic Library (GMP). 
 
 To resolve this issue, you can set environment variables that point the compiler (`clang` or `gcc`) to the directory where `gmp.h` is located. Here's how you can do it:
 
