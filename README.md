@@ -38,7 +38,7 @@ We checked this repository with the following operating systems:
 Clone the repository and install the required dependencies:
 
 ```bash
-git clone https://github.com/Abdu-Hekal/mpc-reachability.git
+git clone https://github.com/Abdu-Hekal/neural-reachability.git
 cd mpc-reachability
 pip install -r requirements.txt
 ```
