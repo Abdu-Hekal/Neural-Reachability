@@ -17,7 +17,7 @@ This repository employs neural reachability to reason about the safety of an aut
 
 ## Introduction
 
-Neural-Reachability is a framework designed to enhance the safety of autonomous vehicles using Model Predictive Control (MPC) and neural network-based reachability analysis. The system evaluates the potential paths of the vehicle to detect any possible intersections with obstacles, thereby ensuring safe navigation through various maneuvers.
+Neural-Reachability is a framework for neural network-based reachability analysis. We train deep neural networks to learn the reachable sets of dynamical systems. Formally, we say that given a system, a set of initial conditions, a disturbance set, and a bounded time interval of interest, neural reachability estimates the reachable sets of the system through deep neural networks. In this repository, we deploy neural reachability for online monitoring of a control system. In particular, it acts as a decision module for a vehicle completing a set of maneuvers. If a vehicle's control action is deemed unsafe (predicted reachable sets intersect with obstacles), the vehicle is brought to a halt. 
 
 ## Maneuvers
 
