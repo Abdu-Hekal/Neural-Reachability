@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository employs neural reachability to reason about the safety of an autonomous vehicle with an MPC controller. The vehicle aims to undertake five different maneuvers driven by the MPC controller while neural network reachability checks for intersections with obstacles to ensure safety.
+This repository employs neural reachability to reason about the safety of an autonomous vehicle with an MPC controller. The vehicle aims to undertake five different maneuvers driven by the MPC controller while neural network reachability checks for intersections with obstacles to ensure safety. To see neural reachability employed as an online monitoring system in a simplex architecture, see the repository [here](https://github.com/Abdu-Hekal/Neural-Reachability-Simplex).
 
 ## Table of Contents
 
