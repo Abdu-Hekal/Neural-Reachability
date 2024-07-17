@@ -8,7 +8,7 @@ This repository employs neural reachability to reason about the safety of an aut
 
 - [Introduction](#introduction)
 - [Maneuvers](#maneuvers)
-- [Prerequisites](#prerequisites)
+- [Compatability](#compatability)
 - [Installation](#installation)
 - [Usage](#usage)
 - [Example](#example)
@@ -25,7 +25,7 @@ Neural-Reachability is a framework designed to enhance the safety of autonomous 
 4. Making a U-turn.
 5. Changing lanes due to a roadblock.
 
-## Prerequisites
+## Compatability
 
 We checked this repository with the following operating systems:
 
